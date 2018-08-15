@@ -9,8 +9,6 @@ class DataGenerator(object):
         self.batchsize   = batchsize
         self.im_size = im_size
 
-
-
     def __call__(self):
         dataset = tf.data.Dataset.from_tensor_slices((self.mask_im,self.target_im))
         dataset = dataset.map(self.process)
