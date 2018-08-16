@@ -69,4 +69,4 @@ if __name__=="__main__":
     window_size = 11
     size_average = False
     sigma=1.5
-    res = ssim(im1,im2,window_size,sigma,size_average)
+    res = ssim_block(im1,im2,window_size,sigma,size_average)

@@ -194,7 +194,7 @@ def Basic_rnn_block(input,num_filters,kernel_size,dilations,depth,state,choice="
         for i in range(depth-3):
             cnt += 1
             conv_name = choice+"_"+str(cnt)
-            conv,cur_state = rnn_map[choice](conv,num_filters=num_filters,kernel_size=kernel_size,dilations=tf.pow(2,i)*dilations,pair=state[cnt],name=conv_name)
+            conv,cur_state = rnn_map[choice](conv,num_filters=num_filters,kernel_size=kernel_size,dilations=[(2**i)*dilations[0],(2**i)*dilations[1]],pair=state[cnt],name=conv_name)
             tmp_state.append(cur_state)
     return conv,tmp_state,cnt
 
@@ -216,7 +216,7 @@ def DetailNet(input,num_filters,kernel_size,dilations,ratio,depth,stage_num,fram
         for i in range(stage_num):
             stage_name = "stage_"+str(i)
             conv,c_state,_ = Basic_rnn_block(input,num_filters,kernel_size,dilations,depth,init_state,choice,name=stage_name+'RNN_Block')
-            conv           = Basic_dec_block(input,num_filters,kernel_size,dilations,ratio=ratio,name=stage_name+"Dec_Block")
+            conv           = Basic_dec_block(conv,num_filters,kernel_size,dilations,ratio=ratio,name=stage_name+"Dec_Block")
 
             if frame == "add" and i>0:
                 conv = conv + res[-1]

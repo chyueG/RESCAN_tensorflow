@@ -6,8 +6,7 @@ import os
 from ssim import *
 import cv2
 
-cfg = namedtuple(cfg,["im_dir","channel","stage_num","use_se","uint","frame","aug_data","batch_size",\
-                      "im_size","lr","show_dir","model_dir","depth","decay_step","decay_rate","epoch"])
+cfg = namedtuple("cfg",["im_dir","channel","stage_num","use_se","choice","frame","aug_data","batch_size","im_size","lr","show_dir","model_dir","depth","decay_step","decay_rate","epoch"])
 
 def path_check(path):
     if not os.path.exists(path):
@@ -16,16 +15,16 @@ def path_check(path):
 def run(mode,cfg):
     path_check(cfg.model_dir)
 
-    O = tf.placeholder(tf.float32,[cfg.batchsize,cfg.im_size,cfg.im_size,3],name="original")
-    B = tf.placeholder(tf.float32,[cfg.batchsize,cfg.im_size,cfg.im_size,3],name="background")
-    rain_streaks = DetailNet(input,cfg.channel,kernel_size=[3,3],dilations=[1,1],ratio=6,depth=cfg.depth,\
-                             stage_num=cfg.stage_num,frame=cfg.frame,choice=cfg.uint)
+    O = tf.placeholder(tf.float32,[cfg.batch_size,cfg.im_size,cfg.im_size,3],name="original")
+    B = tf.placeholder(tf.float32,[cfg.batch_size,cfg.im_size,cfg.im_size,3],name="background")
+    rain_streaks = DetailNet(O,cfg.channel,kernel_size=[3,3],dilations=[1,1],ratio=6,depth=cfg.depth,\
+                             stage_num=cfg.stage_num,frame=cfg.frame,choice=cfg.choice)
     R = O-B
     # reconstruction image
     res_im = 0 - rain_streaks[-1]
 
-    mse_func = lambda i:tf.losses.means_squared_error(label=R,predictions=i)
-    ssim_func = lambda j:ssim_block(im1=O-j,im2=O-B,window_size=11,sigma=1.5,size_average=True,channel=3)
+    mse_func = lambda i:tf.losses.mean_squared_error(labels=R,predictions=i)
+    ssim_func = lambda j,k:ssim_block(im1=O-j,im2=O-B,window_size=11,sigma=1.5,size_average=True,channel=3,name=k)
     with tf.variable_scope("mse_loss"):
         mse_loss = [mse_func(i) for i in rain_streaks]
         mse_loss = tf.reduce_sum(mse_loss)
@@ -34,7 +33,7 @@ def run(mode,cfg):
         mse_sum = tf.summary.scalar("mse_loss",mse_loss)
 
     with tf.variable_scope("ssim_func"):
-        ssim_loss = [ssim_func(j) for j in rain_streaks]
+        ssim_loss = [ssim_func(j,"ssim_block"+str(k)) for k,j in enumerate(rain_streaks)]
 
     ssim_sum = list()
     with tf.name_scope("ssim_loss"):
@@ -50,22 +49,23 @@ def run(mode,cfg):
     update_ops = tf.group(*update_vars)
 
     with tf.control_dependencies([update_ops]):
-        train_op  = optimizer.minimizer(mse_loss,global_step)
+        train_op  = optimizer.minimize(mse_loss,global_step)
 
     summary = tf.summary.merge_all()
     s_writer = tf.summary.FileWriter(cfg.model_dir)
 
     if mode == "train":
-        train_data = DataGenerator(cfg.im_dir,cfg.batchsize,cfg.im_size)
-        train_iterator = tf.data.Iterator.from_structure(train_data.data.output_types,train_data.data.output_shapes)
+        train_data = DataGenerator(cfg.im_dir,cfg.batch_size,cfg.im_size)
+        train_iterator = tf.data.Iterator.from_structure(train_data.dataset.output_types,train_data.dataset.output_shapes)
         train_next_batch = train_iterator.get_next()
-        train_init       = train_iterator.make_initializer(train_data.data)
-        train_iterations = train_data.datasize/cfg.batchsize
+        train_init       = train_iterator.make_initializer(train_data.dataset)
+        train_iterations = train_data.datasize/cfg.batch_size
 
         max_steps        = train_iterations*cfg.epoch
         run_step = 0
-
-        with tf.Session() as sess:
+        config = tf.ConfigProto(allow_soft_placement=True)
+        config.gpu_options.per_process_gpu_memory_fraction=0.5
+        with tf.Session(config=config) as sess:
             sess.run(tf.global_variables_initializer())
             s_writer.add_graph(sess.graph)
             for i in range(cfg.epoch):
@@ -78,8 +78,11 @@ def run(mode,cfg):
                         s_writer.add_summary(b_sum,run_step)
                     if (run_step%1000==0):
                         mask_im = np.squeeze(mask_batch[1,:,:,:])
+                        mask_im = mask_im[:,:,::-1]
                         target_im = np.squeeze(target_batch[1,:,:,:])
+                        target_im = target_im[:,:,::-1]
                         result_im = np.squeeze(b_res_im[1,:,:,:])
+                        result_im = result_im[:,:,::-1]
                         concate_im = np.hstack([mask_im,target_im,result_im])
                         save_name = cfg.show_dir + "epoch_"+str(i)+"iteraction_"+str(j)+".jpg"
                         cv2.imwrite(save_name,concate_im)
@@ -111,3 +114,22 @@ def run(mode,cfg):
 
 
 
+if __name__ == "__main__":
+    cfg.im_dir = "/media/llh/folder/llh/data/watermark/"
+    cfg.channel = 24
+    cfg.stage_num=4
+    cfg.depth   = 7
+    cfg.use_se = True
+    cfg.choice = "RNN"
+    cfg.frame = "Add"
+    cfg.aug_data=False
+    cfg.batch_size=4
+    cfg.im_size=128
+    cfg.lr    = 1e-2
+    cfg.decay_step = 10000
+    cfg.decay_rate = 0.95
+    cfg.show_dir = "/media/llh/folder/llh/model/watermark/0816res/"
+    cfg.model_dir = "/media/llh/folder/llh/model/watermark/0816/"
+    cfg.epoch = 10
+    mode  = "train"
+    run(mode,cfg)
