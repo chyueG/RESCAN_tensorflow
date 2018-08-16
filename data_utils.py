@@ -8,7 +8,10 @@ class DataGenerator(object):
         self.__loop__()
         self.batchsize   = batchsize
         self.im_size = im_size
+<<<<<<< HEAD
         self.__call__()
+=======
+>>>>>>> d4ecfa92553e97c54cb7a0ba22f6eec806615f5a
 
     def __call__(self):
         dataset = tf.data.Dataset.from_tensor_slices((self.mask_im,self.target_im))
