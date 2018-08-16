@@ -8,8 +8,7 @@ class DataGenerator(object):
         self.__loop__()
         self.batchsize   = batchsize
         self.im_size = im_size
-
-
+        self.__call__()
 
     def __call__(self):
         dataset = tf.data.Dataset.from_tensor_slices((self.mask_im,self.target_im))
@@ -21,15 +20,17 @@ class DataGenerator(object):
 
 
     def process(self,m_impath,t_impath):
-        if m_impath.endswith("png") and t_impath.endswith("png"):
-            m_im = tf.image.decode_png(m_impath)
-            t_im = tf.image.decode_png(t_impath)
-        else:
-            m_im = tf.image.decode_jpeg(m_impath)
-            t_im = tf.image.decode_jpeg(t_impath)
+        #if m_impath.endswith("png") and t_impath.endswith("png"):
+        #    m_im = tf.image.decode_png(m_impath)
+        #    t_im = tf.image.decode_png(t_impath)
+        #else:
+        m_string = tf.read_file(m_impath)
+        t_string = tf.read_file(t_impath)
+        m_im = tf.image.decode_jpeg(m_string)
+        t_im = tf.image.decode_jpeg(t_string)
 
-        m_im = tf.image.resize_images(m_im,self.im_size)
-        t_im = tf.image.resize_images(t_im,self.im_size)
+        m_im = tf.image.resize_images(m_im,[self.im_size,self.im_size])
+        t_im = tf.image.resize_images(t_im,[self.im_size,self.im_size])
         return m_im,t_im
 
     def __loop__(self):
@@ -38,8 +39,8 @@ class DataGenerator(object):
         mask_dir = self.im_dir + SUB_DIR[0]
         target_dir = self.im_dir + SUB_DIR[1]
         for file in os.listdir(mask_dir):
-            mask_im = mask_dir+"./"+file
-            target_im = target_dir+"./"+file
+            mask_im = mask_dir+"/"+file
+            target_im = target_dir+"/"+file
             if os.path.exists(target_im):
                 self.mask_im.append(mask_im)
                 self.target_im.append(target_im)
