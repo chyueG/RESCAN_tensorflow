@@ -8,10 +8,7 @@ class DataGenerator(object):
         self.__loop__()
         self.batchsize   = batchsize
         self.im_size = im_size
-<<<<<<< HEAD
         self.__call__()
-=======
->>>>>>> d4ecfa92553e97c54cb7a0ba22f6eec806615f5a
 
     def __call__(self):
         dataset = tf.data.Dataset.from_tensor_slices((self.mask_im,self.target_im))
@@ -32,8 +29,11 @@ class DataGenerator(object):
         m_im = tf.image.decode_jpeg(m_string)
         t_im = tf.image.decode_jpeg(t_string)
 
+
         m_im = tf.image.resize_images(m_im,[self.im_size,self.im_size])
+        m_im.set_shape([self.im_size,self.im_size,3])
         t_im = tf.image.resize_images(t_im,[self.im_size,self.im_size])
+        t_im.set_shape([self.im_size,self.im_size,3])
         return m_im,t_im
 
     def __loop__(self):
@@ -50,3 +50,23 @@ class DataGenerator(object):
 
         self.datasize =len(self.mask_im)
 
+
+
+
+def is_valid_jpg(jpg_file):
+    if jpg_file.split('.')[-1].lower() == 'jpg':
+        with open(jpg_file, 'rb') as f:
+            f.seek(-2, 2)
+            if f.read() != "\xff\xd9":
+                #os.remove(jpg_file)
+                print(jpg_file)
+            #else:
+            #    print(jpg_file)
+
+
+
+if __name__=="__main__":
+    im_folder=r"/media/llh/folder/llh/data/watermark/target/"
+    for file in os.listdir(im_folder):
+        im_name = im_folder+file
+        is_valid_jpg(im_name)
